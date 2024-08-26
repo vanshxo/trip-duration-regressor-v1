@@ -2,12 +2,6 @@ import numpy as np
 import pandas as pd
 import pathlib
 
-def date_time_features(df):
-    df['pickup_datetime'] = pd.to_datetime(df.pickup_datetime)
-    df.loc[:, 'pickup_date'] = df['pickup_datetime'].dt.date
-    df['dropoff_datetime'] = pd.to_datetime(df.dropoff_datetime)
-    df['store_and_fwd_flag'] = 1 * (df.store_and_fwd_flag.values == 'Y')
-    return df
 
 
 def haversine_array(lat1, lng1, lat2, lng2):
@@ -33,6 +27,26 @@ def bearing_array(lat1, lng1, lat2, lng2):
     return np.degrees(np.arctan2(y, x))
 
 
+def datetime_feature_fix(df):
+    df['pickup_datetime'] = pd.to_datetime(df.pickup_datetime)
+    df.loc[:, 'pickup_date'] = df['pickup_datetime'].dt.date
+    df['store_and_fwd_flag'] = 1 * (df.store_and_fwd_flag.values == 'Y')
+
+
+def create_dist_features(df):
+    df.loc[:, 'distance_haversine'] = haversine_array(df['pickup_latitude'].values, df['pickup_longitude'].values, df['dropoff_latitude'].values, df['dropoff_longitude'].values)
+    df.loc[:, 'distance_dummy_manhattan'] = dummy_manhattan_distance(df['pickup_latitude'].values, df['pickup_longitude'].values, df['dropoff_latitude'].values, df['dropoff_longitude'].values)
+    df.loc[:, 'direction'] = bearing_array(df['pickup_latitude'].values, df['pickup_longitude'].values, df['dropoff_latitude'].values, df['dropoff_longitude'].values)
+    
+
+def create_datetime_features(df):
+    df.loc[:, 'pickup_weekday'] = df['pickup_datetime'].dt.weekday
+    df.loc[:, 'pickup_hour'] = df['pickup_datetime'].dt.hour
+    df.loc[:, 'pickup_minute'] = df['pickup_datetime'].dt.minute
+    df.loc[:, 'pickup_dt'] = (df['pickup_datetime'] - df['pickup_datetime'].min()).dt.total_seconds()
+    df.loc[:, 'pickup_week_hour'] = df['pickup_weekday'] * 24 + df['pickup_hour']
+
+
 def build_features(df):
     df.loc[:, 'distance_haversine'] = haversine_array(df['pickup_latitude'].values, df['pickup_longitude'].values, df['dropoff_latitude'].values, df['dropoff_longitude'].values)
     df.loc[:, 'distance_dummy_manhattan'] = dummy_manhattan_distance(df['pickup_latitude'].values, df['pickup_longitude'].values, df['dropoff_latitude'].values, df['dropoff_longitude'].values)
@@ -40,15 +54,27 @@ def build_features(df):
     return df
 
 
-def testing(df):
-    df=date_time_features(df)
-    df=build_features(df)
-    print(df.head)
+def test_feature_build(df):
+    datetime_feature_fix(df)
+    create_dist_features(df)
+    create_datetime_features(df)
+    print(df.head())
 
-if __name__=="__main__":
-    curr_dir=pathlib.Path().cwd()
-    home_dir=pathlib.Path().home()
+def feature_build(df, tag):
+    datetime_feature_fix(df)
+    create_dist_features(df)
+    create_datetime_features(df)
+    do_not_use_for_training = ['id', 'pickup_datetime', 'dropoff_datetime',
+                            'check_trip_duration', 'pickup_date', 'pickup_datetime_group']
+    feature_names = [f for f in df.columns if f not in do_not_use_for_training]
+    print(f'We have {len(feature_names)} features in {tag}.')
+    return df[feature_names]
+
+if __name__ == '__main__':
+    curr_dir = pathlib.Path().cwd()
     
-    data_dir=curr_dir.as_posix() +'/data/raw/train.csv'
+    data_path = curr_dir.as_posix() + '/data/raw/test.csv' 
+    data = pd.read_csv(data_path, nrows=10)
+    test_feature_build(data)
  
     
