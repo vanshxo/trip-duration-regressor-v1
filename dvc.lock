@@ -28,4 +28,4 @@ stages:
       params.yaml:
         train_model.max_depth: 8
         train_model.n_estimators: 50
-        train_model.seed: 21
+        train_model.seed: 42
